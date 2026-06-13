@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Patterned Shield — Deepfake Protection Tool</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&family=Inter:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #080c10;
+    --bg2: #0d1117;
+    --bg3: #111820;
+    --cyan: #00e5ff;
+    --pink: #ff2d78;
+    --green: #39ff14;
+    --amber: #ffb300;
+    --text: #c9d1d9;
+    --dim: #586069;
+    --border: #1e2d3d;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,229,255,0.012) 2px,
+      rgba(0,229,255,0.012) 4px
+    );
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--bg2);
+  }
+
+  .logo {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1.1rem;
+    color: var(--cyan);
+    letter-spacing: 0.1em;
+  }
+
+  .logo span { color: var(--pink); }
+
+  .status-bar {
+    margin-left: auto;
+    display: flex;
+    gap: 18px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--dim);
+  }
+
+  .status-bar .dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    margin-right: 5px;
+    animation: blink 1.8s infinite;
+  }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  /* ─── Main layout ─── */
+  .main {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    min-height: calc(100vh - 57px);
+  }
+
+  /* ─── Sidebar ─── */
+  .sidebar {
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .sidebar-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--dim);
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Technique cards */
+  .tech-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .tech-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--dim);
+    transition: background 0.2s;
+  }
+
+  .tech-card:hover { border-color: #2a3a4a; background: var(--bg3); }
+
+  .tech-card.active {
+    border-color: var(--cyan);
+    background: rgba(0,229,255,0.04);
+  }
+
+  .tech-card.active::before { background: var(--cyan); }
+
+  .tech-card.pink-active { border-color: var(--pink); background: rgba(255,45,120,0.04); }
+  .tech-card.pink-active::before { background: var(--pink); }
+
+  .tech-card.green-active { border-color: var(--green); background: rgba(57,255,20,0.04); }
+  .tech-card.green-active::before { background: var(--green); }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .card-icon {
+    width: 28px; height: 28px;
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .icon-cyan { background: rgba(0,229,255,0.12); }
+  .icon-pink { background: rgba(255,45,120,0.12); }
+  .icon-green { background: rgba(57,255,20,0.12); }
+
+  .card-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  .cyan-text { color: var(--cyan); }
+  .pink-text { color: var(--pink); }
+  .green-text { color: var(--green); }
+
+  .card-desc {
+    font-size: 0.78rem;
+    color: var(--dim);
+    line-height: 1.5;
+  }
+
+  /* Intensity slider */
+  .slider-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .slider-label {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--dim);
+  }
+
+  .slider-label span:last-child { color: var(--cyan); }
+
+  input[type=range] {
+    width: 100%;
+    height: 4px;
+    appearance: none;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--cyan);
+    cursor: pointer;
+    box-shadow: 0 0 8px var(--cyan);
+  }
+
+  .range-pink::-webkit-slider-thumb { background: var(--pink); box-shadow: 0 0 8px var(--pink); }
+  .range-green::-webkit-slider-thumb { background: var(--green); box-shadow: 0 0 8px var(--green); }
+
+  /* Download btn */
+  .dl-btn {
+    margin-top: auto;
+    padding: 11px;
+    border: 1px solid var(--cyan);
+    border-radius: 6px;
+    background: rgba(0,229,255,0.06);
+    color: var(--cyan);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .dl-btn:hover { background: rgba(0,229,255,0.14); }
+  .dl-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* ─── Canvas area ─── */
+  .canvas-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 32px;
+    gap: 24px;
+    background: var(--bg);
+  }
+
+  /* Upload zone */
+  .upload-zone {
+    width: 100%;
+    max-width: 680px;
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 48px 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    background: var(--bg2);
+  }
+
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--cyan);
+    background: rgba(0,229,255,0.03);
+  }
+
+  .upload-zone.hidden { display: none; }
+
+  .upload-icon { font-size: 2.5rem; margin-bottom: 14px; opacity: 0.6; }
+
+  .upload-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .upload-sub { font-size: 0.8rem; color: var(--dim); }
+
+  #fileInput { display: none; }
+
+  /* Canvas wrapper */
+  .canvases {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    width: 100%;
+    max-width: 720px;
+  }
+
+  .canvases.visible { display: flex; }
+
+  .canvas-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    width: 100%;
+  }
+
+  .canvas-box {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .canvas-label {
+    padding: 8px 12px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--dim);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .canvas-label .tag {
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 0.62rem;
+  }
+
+  .tag-original { background: rgba(88,96,105,0.3); color: var(--dim); }
+  .tag-protected { background: rgba(0,229,255,0.15); color: var(--cyan); }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 340px;
+    object-fit: contain;
+  }
+
+  /* AI confusion meter */
+  .meter-bar {
+    width: 100%;
+    max-width: 720px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+  }
+
+  .meter-title {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--dim);
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .meter-title span { color: var(--pink); }
+
+  .meter-tracks {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .meter-track {
+    display: grid;
+    grid-template-columns: 140px 1fr 40px;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.75rem;
+    color: var(--dim);
+  }
+
+  .track-bar {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .track-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.8s cubic-bezier(.4,0,.2,1);
+    width: 0%;
+  }
+
+  .fill-cyan { background: linear-gradient(90deg, var(--cyan), rgba(0,229,255,0.4)); }
+  .fill-pink { background: linear-gradient(90deg, var(--pink), rgba(255,45,120,0.4)); }
+  .fill-green { background: linear-gradient(90deg, var(--green), rgba(57,255,20,0.4)); }
+
+  .track-val {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    text-align: right;
+  }
+
+  /* Reset link */
+  .reset-link {
+    font-size: 0.75rem;
+    color: var(--dim);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .reset-link:hover { color: var(--text); }
+
+  /* Glitch anim on protected label */
+  @keyframes glitch {
+    0%,95%,100% { clip-path: inset(0); transform: translate(0); }
+    96% { clip-path: inset(20% 0 30% 0); transform: translate(-2px, 1px); }
+    98% { clip-path: inset(60% 0 5% 0); transform: translate(2px, -1px); }
+  }
+
+  .glitch-text { animation: glitch 4s infinite; display: inline-block; }
+
+  /* Responsive */
+  @media (max-width: 820px) {
+    .main { grid-template-columns: 1fr; }
+    .canvas-row { grid-template-columns: 1fr; }
+    .sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">PATTERNED<span>SHIELD</span></div>
+  <div style="font-size:0.75rem; color:var(--dim); font-family:'Share Tech Mono',monospace;">
+    // anti-deepfake image protection tool
+  </div>
+  <div class="status-bar">
+    <span><span class="dot"></span>CLIENT-SIDE ONLY</span>
+    <span>NO UPLOAD</span>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-title">// protection techniques</div>
+
+    <!-- Technique 1 -->
+    <div class="tech-card active" id="card1" onclick="selectTech(1)">
+      <div class="card-header">
+        <div class="card-icon icon-cyan">🔲</div>
+        <div class="card-title cyan-text">Patterned Shield</div>
+      </div>
+      <div class="card-desc">Moiré mesh overlay confuses facial landmark detection. AI feature extractor sees mathematical noise instead of your face.</div>
+      <div class="slider-row">
+        <div class="slider-label">
+          <span>INTENSITY</span>
+          <span id="val1">50%</span>
+        </div>
+        <input type="range" id="range1" min="10" max="100" value="50"
+          oninput="document.getElementById('val1').textContent=this.value+'%'; applyEffect()">
+      </div>
+    </div>
+
+    <!-- Technique 2 -->
+    <div class="tech-card" id="card2" onclick="selectTech(2)">
+      <div class="card-header">
+        <div class="card-icon icon-pink">💡</div>
+        <div class="card-title pink-text">Asymmetric Lighting</div>
+      </div>
+      <div class="card-desc">Dual-color cyberpunk lighting breaks depth map estimation. AI can't calculate 3D geometry for the face swap.</div>
+      <div class="slider-row">
+        <div class="slider-label">
+          <span>INTENSITY</span>
+          <span id="val2">50%</span>
+        </div>
+        <input type="range" id="range2" class="range-pink" min="10" max="100" value="50"
+          oninput="document.getElementById('val2').textContent=this.value+'%'; applyEffect()">
+      </div>
+    </div>
+
+    <!-- Technique 3 -->
+    <div class="tech-card" id="card3" onclick="selectTech(3)">
+      <div class="card-header">
+        <div class="card-icon icon-green">💎</div>
+        <div class="card-title green-text">Tactile Glitch</div>
+      </div>
+      <div class="card-desc">Reflective hotspot simulation mimics IR-reflective jewelry. Creates dead zones where AI can't separate skin from accessory.</div>
+      <div class="slider-row">
+        <div class="slider-label">
+          <span>INTENSITY</span>
+          <span id="val3">50%</span>
+        </div>
+        <input type="range" id="range3" class="range-green" min="10" max="100" value="50"
+          oninput="document.getElementById('val3').textContent=this.value+'%'; applyEffect()">
+      </div>
+    </div>
+
+    <button class="dl-btn" id="dlBtn" disabled onclick="downloadImage()">
+      ⬇ Download Protected Image
+    </button>
+  </aside>
+
+  <!-- Main canvas area -->
+  <main class="canvas-area">
+
+    <div class="upload-zone" id="uploadZone"
+      onclick="document.getElementById('fileInput').click()"
+      ondragover="handleDragOver(event)"
+      ondragleave="handleDragLeave(event)"
+      ondrop="handleDrop(event)">
+      <div class="upload-icon">🛡️</div>
+      <div class="upload-title">Upload your image to protect</div>
+      <div class="upload-sub">Click or drag &amp; drop · PNG, JPG, WEBP · runs entirely in your browser</div>
+      <input type="file" id="fileInput" accept="image/*" onchange="loadImage(event)">
+    </div>
+
+    <div class="canvases" id="canvases">
+
+      <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+        <div style="font-family:'Rajdhani',sans-serif; font-size:1rem; font-weight:700; color:var(--text);">
+          Image Preview
+        </div>
+        <span class="reset-link" onclick="resetTool()">← Load different image</span>
+      </div>
+
+      <div class="canvas-row">
+        <div class="canvas-box">
+          <div class="canvas-label">
+            <span class="tag tag-original">ORIGINAL</span>
+            <span>unprotected · AI-readable</span>
+          </div>
+          <canvas id="origCanvas"></canvas>
+        </div>
+        <div class="canvas-box">
+          <div class="canvas-label">
+            <span class="tag tag-protected"><span class="glitch-text">PROTECTED</span></span>
+            <span id="techLabel">Patterned Shield active</span>
+          </div>
+          <canvas id="outCanvas"></canvas>
+        </div>
+      </div>
+
+      <!-- AI confusion meters -->
+      <div class="meter-bar">
+        <div class="meter-title">
+          // estimated AI confusion score
+          <span id="overallScore">–</span>
+        </div>
+        <div class="meter-tracks">
+          <div class="meter-track">
+            <span>Landmark Detection</span>
+            <div class="track-bar"><div class="track-fill fill-cyan" id="bar1"></div></div>
+            <span class="track-val cyan-text" id="bval1">–</span>
+          </div>
+          <div class="meter-track">
+            <span>Depth Map Error</span>
+            <div class="track-bar"><div class="track-fill fill-pink" id="bar2"></div></div>
+            <span class="track-val pink-text" id="bval2">–</span>
+          </div>
+          <div class="meter-track">
+            <span>Skin Segmentation</span>
+            <div class="track-bar"><div class="track-fill fill-green" id="bar3"></div></div>
+            <span class="track-val green-text" id="bval3">–</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+  let selectedTech = 1;
+  let origImg = null;
+
+  function selectTech(n) {
+    selectedTech = n;
+    document.querySelectorAll('.tech-card').forEach((c, i) => {
+      c.classList.remove('active', 'pink-active', 'green-active');
+    });
+    const classes = ['active', 'pink-active', 'green-active'];
+    document.getElementById('card' + n).classList.add(classes[n - 1]);
+
+    const labels = [
+      'Patterned Shield active',
+      'Asymmetric Lighting active',
+      'Tactile Glitch active'
+    ];
+    document.getElementById('techLabel').textContent = labels[n - 1];
+
+    if (origImg) applyEffect();
+  }
+
+  function handleDragOver(e) {
+    e.preventDefault();
+    document.getElementById('uploadZone').classList.add('drag-over');
+  }
+
+  function handleDragLeave(e) {
+    document.getElementById('uploadZone').classList.remove('drag-over');
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    handleDragLeave(e);
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) readFile(file);
+  }
+
+  function loadImage(event) {
+    const file = event.target.files[0];
+    if (file) readFile(file);
+  }
+
+  function readFile(file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        origImg = img;
+        drawOriginal();
+        applyEffect();
+        document.getElementById('uploadZone').classList.add('hidden');
+        document.getElementById('canvases').classList.add('visible');
+        document.getElementById('dlBtn').disabled = false;
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function drawOriginal() {
+    const c = document.getElementById('origCanvas');
+    const max = 640;
+    let w = origImg.width, h = origImg.height;
+    if (w > max) { h = Math.round(h * max / w); w = max; }
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(origImg, 0, 0, w, h);
+  }
+
+  function applyEffect() {
+    if (!origImg) return;
+    const src = document.getElementById('origCanvas');
+    const out = document.getElementById('outCanvas');
+    out.width = src.width;
+    out.height = src.height;
+    const ctx = out.getContext('2d');
+    ctx.drawImage(src, 0, 0);
+
+    const t = selectedTech;
+    const intensity = parseInt(document.getElementById('range' + t).value) / 100;
+
+    if (t === 1) applyMoire(ctx, out.width, out.height, intensity);
+    if (t === 2) applyLighting(ctx, out.width, out.height, intensity);
+    if (t === 3) applyGlitch(ctx, out.width, out.height, intensity);
+
+    updateMeters(t, intensity);
+  }
+
+  // ── Technique 1: Moiré mesh pattern ──
+  function applyMoire(ctx, w, h, intensity) {
+    const spacing = Math.max(3, Math.round(12 - intensity * 8));
+    const alpha = 0.08 + intensity * 0.28;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = `rgba(0,229,255,1)`;
+    ctx.lineWidth = 0.5;
+
+    // Horizontal lines
+    for (let y = 0; y < h; y += spacing) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+    }
+    // Vertical lines
+    for (let x = 0; x < w; x += spacing) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+    }
+
+    // Second rotated grid for interference pattern
+    ctx.strokeStyle = `rgba(255,45,120,0.6)`;
+    ctx.save();
+    ctx.translate(w / 2, h / 2);
+    ctx.rotate(0.15);
+    for (let y = -h; y < h * 2; y += spacing + 1) {
+      ctx.beginPath(); ctx.moveTo(-w, y); ctx.lineTo(w * 2, y); ctx.stroke();
+    }
+    ctx.restore();
+
+    // Random noise dots
+    ctx.globalAlpha = intensity * 0.15;
+    ctx.fillStyle = '#00e5ff';
+    const dots = Math.round(w * h * intensity * 0.002);
+    for (let i = 0; i < dots; i++) {
+      const x = Math.random() * w, y = Math.random() * h;
+      ctx.fillRect(x, y, 1, 1);
+    }
+    ctx.restore();
+  }
+
+  // ── Technique 2: Asymmetric dual-color lighting ──
+  function applyLighting(ctx, w, h, intensity) {
+    ctx.save();
+
+    // Pink light from top-left
+    const gPink = ctx.createRadialGradient(
+      w * 0.1, h * 0.1, 0,
+      w * 0.1, h * 0.1, w * 0.7
+    );
+    gPink.addColorStop(0, `rgba(255,45,120,${0.15 + intensity * 0.35})`);
+    gPink.addColorStop(1, 'rgba(255,45,120,0)');
+    ctx.fillStyle = gPink;
+    ctx.fillRect(0, 0, w, h);
+
+    // Cyan light from bottom-right
+    const gCyan = ctx.createRadialGradient(
+      w * 0.9, h * 0.9, 0,
+      w * 0.9, h * 0.9, w * 0.7
+    );
+    gCyan.addColorStop(0, `rgba(0,229,255,${0.15 + intensity * 0.3})`);
+    gCyan.addColorStop(1, 'rgba(0,229,255,0)');
+    ctx.fillStyle = gCyan;
+    ctx.fillRect(0, 0, w, h);
+
+    // Projected light grid
+    ctx.globalAlpha = 0.06 + intensity * 0.18;
+    ctx.strokeStyle = 'rgba(255,200,50,1)';
+    ctx.lineWidth = 0.7;
+    const gridSize = Math.max(8, Math.round(30 - intensity * 18));
+    for (let y = 0; y < h; y += gridSize) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+    }
+    for (let x = 0; x < w; x += gridSize) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  // ── Technique 3: Tactile glitch hotspots ──
+  function applyGlitch(ctx, w, h, intensity) {
+    ctx.save();
+
+    // Hotspot positions mimicking jewelry placement
+    const hotspots = [
+      { x: 0.5, y: 0.38, r: 0.04, label: 'bridge' },     // nose bridge
+      { x: 0.35, y: 0.45, r: 0.035, label: 'cheek-L' },   // left cheek
+      { x: 0.65, y: 0.45, r: 0.035, label: 'cheek-R' },   // right cheek
+      { x: 0.3, y: 0.55, r: 0.025, label: 'jaw-L' },      // jaw
+      { x: 0.7, y: 0.55, r: 0.025, label: 'jaw-R' },
+    ];
+
+    hotspots.forEach(hs => {
+      const cx = hs.x * w, cy = hs.y * h;
+      const radius = hs.r * w * (0.5 + intensity * 1.0);
+
+      // Blown-out reflection bloom
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+      g.addColorStop(0, `rgba(255,255,255,${0.4 + intensity * 0.55})`);
+      g.addColorStop(0.3, `rgba(57,255,20,${0.2 + intensity * 0.3})`);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Pixel disruption border
+      ctx.globalAlpha = intensity * 0.6;
+      for (let i = 0; i < 12; i++) {
+        const angle = (i / 12) * Math.PI * 2;
+        const dist = radius * (0.7 + Math.random() * 0.6);
+        const px = cx + Math.cos(angle) * dist;
+        const py = cy + Math.sin(angle) * dist;
+        ctx.fillStyle = Math.random() > 0.5 ? '#39ff14' : '#ff2d78';
+        ctx.fillRect(px - 1, py - 1, 3, 3);
+      }
+      ctx.globalAlpha = 1;
+    });
+
+    // Frame-edge glitch strips (simulate IR frame overflow)
+    ctx.globalAlpha = intensity * 0.12;
+    const strips = Math.round(intensity * 6);
+    for (let i = 0; i < strips; i++) {
+      const y = Math.random() * h;
+      const stripH = 1 + Math.random() * 3;
+      ctx.fillStyle = Math.random() > 0.5 ? '#39ff14' : 'rgba(255,255,255,0.8)';
+      ctx.fillRect(0, y, w, stripH);
+    }
+
+    ctx.restore();
+  }
+
+  // ── Confusion score meters ──
+  function updateMeters(tech, intensity) {
+    // Base contribution of each technique to each metric
+    const weights = {
+      1: [0.85, 0.3, 0.2],   // Moiré: great at landmarks, ok depth, low skin
+      2: [0.35, 0.9, 0.25],  // Lighting: ok landmarks, great depth, ok skin
+      3: [0.25, 0.2, 0.9],   // Glitch: low landmarks, low depth, great skin
+    };
+    const [w1, w2, w3] = weights[tech];
+    const base = 0.2 + intensity * 0.75;
+
+    const v1 = Math.min(99, Math.round(base * w1 * 100 + Math.random() * 4));
+    const v2 = Math.min(99, Math.round(base * w2 * 100 + Math.random() * 4));
+    const v3 = Math.min(99, Math.round(base * w3 * 100 + Math.random() * 4));
+
+    document.getElementById('bar1').style.width = v1 + '%';
+    document.getElementById('bar2').style.width = v2 + '%';
+    document.getElementById('bar3').style.width = v3 + '%';
+    document.getElementById('bval1').textContent = v1 + '%';
+    document.getElementById('bval2').textContent = v2 + '%';
+    document.getElementById('bval3').textContent = v3 + '%';
+
+    const overall = Math.round((v1 + v2 + v3) / 3);
+    const label = overall > 70 ? 'HIGH PROTECTION' : overall > 40 ? 'MODERATE' : 'LOW';
+    const col = overall > 70 ? 'var(--green)' : overall > 40 ? 'var(--amber)' : 'var(--pink)';
+    const el = document.getElementById('overallScore');
+    el.textContent = label + ' · ' + overall + '%';
+    el.style.color = col;
+  }
+
+  function downloadImage() {
+    const canvas = document.getElementById('outCanvas');
+    const link = document.createElement('a');
+    link.download = 'patterned-shield-protected.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }
+
+  function resetTool() {
+    origImg = null;
+    document.getElementById('uploadZone').classList.remove('hidden');
+    document.getElementById('canvases').classList.remove('visible');
+    document.getElementById('dlBtn').disabled = true;
+    document.getElementById('fileInput').value = '';
+    ['bar1','bar2','bar3'].forEach(id => document.getElementById(id).style.width = '0%');
+    ['bval1','bval2','bval3'].forEach(id => document.getElementById(id).textContent = '–');
+    document.getElementById('overallScore').textContent = '–';
+    document.getElementById('overallScore').style.color = '';
+  }
+</script>
+
+</body>
+</html>
