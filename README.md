@@ -151,7 +151,7 @@ I am actively looking to collaborate with researchers and professors in:
 - Media Forensics
 - Digital Privacy
 
-If you are working in any of these areas and would like to collaborate, please feel free to reach out via [LinkedIn](https://linkedin.com/in/YOUR_PROFILE) or open an Issue on this repo.
+If you are working in any of these areas and would like to collaborate, please feel free to reach out via [LinkedIn](https://linkedin.com/in/farwa-shaikh06) or open an Issue on this repo.
 
 ---
 
